@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Resume Analyzer</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 500px;
+            box-shadow: 0px 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            outline: none;
+        }
+
+        textarea {
+            height: 100px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            transform: scale(1.03);
+            opacity: 0.9;
+        }
+
+        .result {
+            margin-top: 20px;
+            text-align: left;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <h2>Resume Analyzer</h2>
+
+    <input type="file" id="file">
+
+    <textarea id="jobDesc" placeholder="Enter job description"></textarea>
+
+    <button onclick="upload()">Analyze Resume</button>
+
+    <div class="result" id="result">Result will appear here...</div>
+</div>
+
+<script>
+async function upload() {
+    const fileInput = document.getElementById("file");
+    const jobDesc = document.getElementById("jobDesc").value;
+
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+    formData.append("jobDescription", jobDesc);
+
+    const response = await fetch("/match", {
+        method: "POST",
+        body: formData
+    });
+
+    const data = await response.json();
+
+    document.getElementById("result").textContent =
+        "Match Score: " + data.matchScore + "%\n\n" +
+        "Recommendation: " + data.recommendation + "\n\n" +
+        "Resume Skills: " + data.resumeSkills + "\n\n" +
+        "Missing Skills: " + data.missingSkills;
+}
+</script>
+
+</body>
+</html>
