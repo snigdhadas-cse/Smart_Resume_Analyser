@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+
+    <style>
+
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family:Arial, sans-serif;
+        }
+
+        body{
+            background: linear-gradient(135deg,#6a11cb,#2575fc,#4facfe);
+            min-height:100vh;
+            padding:40px;
+            color:white;
+        }
+
+        h1{
+            text-align:center;
+            margin-bottom:30px;
+        }
+
+        .dashboard{
+            max-width:1200px;
+            margin:auto;
+        }
+
+        .stats{
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+            gap:20px;
+            margin-bottom:30px;
+        }
+
+        .card{
+            background:rgba(255,255,255,0.15);
+            backdrop-filter:blur(10px);
+            padding:25px;
+            border-radius:18px;
+            box-shadow:0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        .card h2{
+            font-size:18px;
+            margin-bottom:10px;
+        }
+
+        .card p{
+            font-size:28px;
+            font-weight:bold;
+        }
+
+        .history-section{
+            margin-top:20px;
+        }
+
+        .resume-card{
+            background:rgba(255,255,255,0.15);
+            backdrop-filter:blur(10px);
+            padding:20px;
+            border-radius:18px;
+            margin-bottom:20px;
+            box-shadow:0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        .resume-card h3{
+            margin-bottom:10px;
+        }
+
+        .skills{
+            margin-top:10px;
+        }
+
+        .tag{
+            display:inline-block;
+            padding:6px 10px;
+            background:rgba(255,255,255,0.2);
+            border-radius:20px;
+            margin:5px;
+            font-size:13px;
+        }
+
+        .score{
+            margin-top:10px;
+            font-weight:bold;
+            color:#00ffcc;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="dashboard">
+
+        <h1>Admin Dashboard</h1>
+
+        <div class="stats">
+
+            <div class="card">
+                <h2>Total Resumes</h2>
+                <p id="totalResumes">0</p>
+            </div>
+
+            <div class="card">
+                <h2>Average Match Score</h2>
+                <p id="avgScore">0%</p>
+            </div>
+
+        </div>
+
+        <div class="history-section">
+
+            <h2>Resume History</h2>
+
+            <div id="historyContainer"></div>
+
+        </div>
+
+    </div>
+
+    <script>
+
+        async function loadHistory() {
+
+            const response = await fetch("/history");
+
+            const data = await response.json();
+
+            document.getElementById("totalResumes").innerText = data.length;
+
+            let totalScore = 0;
+
+            const container = document.getElementById("historyContainer");
+
+            container.innerHTML = "";
+
+            data.forEach(item => {
+
+                totalScore += item.matchScore;
+
+                const card = document.createElement("div");
+
+                card.className = "resume-card";
+
+                card.innerHTML = `
+
+                    <h3>${item.fileName}</h3>
+
+                    <p class="score">
+                        Match Score: ${item.matchScore}%
+                    </p>
+
+                    <p>
+                        Recommendation:
+                        ${item.recommendation}
+                    </p>
+
+                    <div class="skills">
+
+                        <strong>Matched Skills:</strong><br>
+
+                        ${item.matchedSkills
+                            .split(",")
+                            .map(skill =>
+                                `<span class="tag">${skill}</span>`
+                            ).join("")}
+
+                    </div>
+
+                    <div class="skills">
+
+                        <strong>Missing Skills:</strong><br>
+
+                        ${item.missingSkills
+                            .split(",")
+                            .map(skill =>
+                                `<span class="tag">${skill}</span>`
+                            ).join("")}
+
+                    </div>
+                `;
+
+                container.appendChild(card);
+
+            });
+
+            let avg = 0;
+
+            if(data.length > 0){
+                avg = totalScore / data.length;
+            }
+
+            document.getElementById("avgScore")
+                .innerText = avg.toFixed(2) + "%";
+        }
+
+        loadHistory();
+
+    </script>
+
+</body>
+
+</html>
