@@ -187,6 +187,11 @@ public class ResumeController {
         return result;
     }
 
+    @GetMapping("/")
+    public String home() {
+        return "Smart Resume Analyzer Running";
+    }
+    
     // FILE UPLOAD API
     @PostMapping("/upload")
     public String uploadFile(
