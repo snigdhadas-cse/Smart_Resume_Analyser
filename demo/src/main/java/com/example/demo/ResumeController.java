@@ -2,6 +2,7 @@ package com.example.demo;
 
 import java.util.*;
 import java.nio.file.*;
+import java.util.stream.Collectors;
 
 import org.apache.tika.Tika;
 
@@ -12,32 +13,28 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 public class ResumeController {
 
-        private final ResumeRepository repository;
+    private final ResumeRepository repository;
 
-        public ResumeController(ResumeRepository repository) 
-        {
-            this.repository = repository;
-        }
+    public ResumeController(ResumeRepository repository) {
+        this.repository = repository;
+    }
 
-    // -----------------------------
     // DYNAMIC SKILL EXTRACTION
-    // -----------------------------
-    private List<String> extractSkills(String text, String skillsInput) {
+    private List<String> extractSkills(
+            String text,
+            List<String> skillsList) {
 
-        List<String> foundSkills = new ArrayList<>();
+        List<String> foundSkills =
+                new ArrayList<>();
 
-        String lowerText = text.toLowerCase();
+        String lowerText =
+                text.toLowerCase();
 
-        // Convert user input into skill list
-        List<String> requiredSkills = Arrays.stream(skillsInput.split(","))
-                .map(String::trim)
-                .map(String::toLowerCase)
-                .toList();
+        for (String skill : skillsList) {
 
-        // Match skills
-        for (String skill : requiredSkills) {
+            if (lowerText.contains(
+                    skill.toLowerCase())) {
 
-            if (lowerText.contains(skill)) {
                 foundSkills.add(skill);
             }
         }
@@ -45,134 +42,177 @@ public class ResumeController {
         return foundSkills;
     }
 
-    
-    // -----------------------------
-    // RESUME MATCH API
-    // -----------------------------
+    // MAIN RESUME MATCH API
     @PostMapping("/match")
     public Map<String, Object> matchResume(
-
             @RequestParam("file") MultipartFile file,
+            @RequestParam("skills") String skillsInput,
+            @RequestParam("jobDescription") String jobDesc) {
 
-            @RequestParam("skills") String skillsInput
-
-    ) {
-
-        Map<String, Object> result = new HashMap<>();
+        Map<String, Object> result =
+                new HashMap<>();
 
         try {
 
-            // Extract resume text
             Tika tika = new Tika();
 
-            String resumeText = tika.parseToString(file.getInputStream());
+            String resumeText =
+                    tika.parseToString(
+                            file.getInputStream());
 
-            // Extract matched skills
-            List<String> matchedSkills =
-                    extractSkills(resumeText, skillsInput);
+            // CUSTOM SKILLS FROM USER INPUT
+            List<String> customSkills =
+                    Arrays.stream(
+                                    skillsInput.split(","))
+                            .map(String::trim)
+                            .map(String::toLowerCase)
+                            .collect(Collectors.toList());
 
-            // Required skills list
-            List<String> requiredSkills = Arrays.stream(skillsInput.split(","))
-                    .map(String::trim)
-                    .map(String::toLowerCase)
-                    .toList();
+            // EXTRACT RESUME SKILLS
+            List<String> resumeSkills =
+                    extractSkills(
+                            resumeText,
+                            customSkills);
 
-            // Missing skills
-            List<String> missingSkills = new ArrayList<>();
+            // EXTRACT JOB SKILLS
+            List<String> jobSkills =
+                    extractSkills(
+                            jobDesc,
+                            customSkills);
 
-            for (String skill : requiredSkills) {
+            // MATCH CALCULATION
+            int matchCount = 0;
 
-                if (!matchedSkills.contains(skill)) {
-                    missingSkills.add(skill);
+            for (String skill : jobSkills) {
+
+                if (resumeSkills.contains(skill)) {
+                    matchCount++;
                 }
             }
 
-            // Score calculation
             double score = 0;
 
-            if (requiredSkills.size() > 0) {
+            if (jobSkills.size() > 0) {
 
-                score = ((double) matchedSkills.size()
-                        / requiredSkills.size()) * 100;
+                score =
+                        (double) matchCount
+                                / jobSkills.size()
+                                * 100;
             }
 
-            score = Math.round(score * 100.0) / 100.0;
+            score =
+                    Math.round(score * 100.0)
+                            / 100.0;
 
-            // Recommendation
+            // RECOMMENDATION
             String message;
 
             if (score >= 75) {
-                message = "Strong Match";
+
+                message = "Strong match";
             }
+
             else if (score >= 50) {
-                message = "Moderate Match";
+
+                message = "Moderate match";
             }
+
             else {
-                message = "Needs Improvement";
+
+                message = "Needs improvement";
             }
 
-            // Return JSON response
-            result.put("matchScore", score);
+            // MISSING SKILLS
+            List<String> missing =
+                    new ArrayList<>();
 
-            result.put("matchedSkills", matchedSkills);
+            for (String skill : jobSkills) {
 
-            result.put("missingSkills", missingSkills);
+                if (!resumeSkills.contains(skill)) {
 
-            result.put("recommendation", message);
+                    missing.add(skill);
+                }
+            }
+
+            // RESPONSE
+            result.put(
+                    "matchScore",
+                    score);
+
+            result.put(
+                    "resumeSkills",
+                    resumeSkills);
+
+            result.put(
+                    "missingSkills",
+                    missing);
+
+            result.put(
+                    "recommendation",
+                    message);
+
+            // SAVE TO DATABASE
+            ResumeData data =
+                    new ResumeData();
+
+            data.setFileName(
+                    file.getOriginalFilename());
+
+            data.setMatchScore(score);
+
+            data.setMatchedSkills(
+                    String.join(
+                            ", ",
+                            resumeSkills));
+
+            data.setMissingSkills(
+                    String.join(
+                            ", ",
+                            missing));
+
+            data.setRecommendation(
+                    message);
+
+            repository.save(data);
 
         }
 
         catch (Exception e) {
 
-            result.put("error", "Processing failed");
-
-            e.printStackTrace();
+            result.put(
+                    "error",
+                    "Processing failed");
         }
-
-        ResumeData data = new ResumeData();
-
-        data.setFileName(file.getOriginalFilename());
-        data.setMatchScore(score);
-
-        data.setMatchedSkills(
-            String.join(", ", resumeSkills)
-        );
-
-        data.setMissingSkills(
-            String.join(", ", missing)
-        );
-
-        data.setRecommendation(message);
-
-        repository.save(data);
 
         return result;
     }
 
-    // -----------------------------
-    // FILE SAVE API
-    // -----------------------------
+    // FILE UPLOAD API
     @PostMapping("/upload")
     public String uploadFile(
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam("file")
+            MultipartFile file) {
 
         try {
 
-            Path uploadPath = Paths.get("uploads");
+            Path uploadPath =
+                    Paths.get("uploads");
 
             if (!Files.exists(uploadPath)) {
 
-                Files.createDirectories(uploadPath);
+                Files.createDirectories(
+                        uploadPath);
             }
 
             Path filePath =
-                    uploadPath.resolve(file.getOriginalFilename());
+                    uploadPath.resolve(
+                            file.getOriginalFilename());
 
             Files.copy(
                     file.getInputStream(),
                     filePath,
-                    StandardCopyOption.REPLACE_EXISTING
-            );
+                    StandardCopyOption
+                            .REPLACE_EXISTING);
 
             return "File saved: "
                     + file.getOriginalFilename();
@@ -185,10 +225,10 @@ public class ResumeController {
         }
     }
 
+    // HISTORY API
     @GetMapping("/history")
     public List<ResumeData> getResumeHistory() {
 
         return repository.findAll();
-
     }
 }
