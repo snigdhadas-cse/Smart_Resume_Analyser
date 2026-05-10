@@ -42,6 +42,11 @@ public class ResumeController {
         return foundSkills;
     }
 
+    @GetMapping("/health")
+    public String health() {
+        return "OK";
+    }
+
     // MAIN RESUME MATCH API
     @PostMapping("/match")
     public Map<String, Object> matchResume(
@@ -187,11 +192,8 @@ public class ResumeController {
         return result;
     }
 
-    @GetMapping("/")
-    public String home() {
-        return "Smart Resume Analyzer Running";
-    }
     
+
     // FILE UPLOAD API
     @PostMapping("/upload")
     public String uploadFile(
