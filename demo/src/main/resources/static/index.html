@@ -369,7 +369,7 @@ Example: Java, Spring Boot, Docker, SQL"
 
     </div>
 
- <script>
+<script>
 
 window.onload = function () {
 
@@ -378,106 +378,132 @@ window.onload = function () {
     const fileName = document.getElementById("fileName");
     const uploadForm = document.getElementById("uploadForm");
 
+    const resultBox = document.getElementById("resultBox");
+    const loader = document.getElementById("loader");
+    const progressContainer = document.getElementById("progressContainer");
+    const progressBar = document.getElementById("progressBar");
+    const skillsInput = document.getElementById("skillsInput");
+
+    // OPEN FILE BROWSER
     browseBtn.addEventListener("click", function () {
         fileInput.click();
     });
 
+    // SHOW FILE NAME
     fileInput.addEventListener("change", function () {
-
         if (fileInput.files.length > 0) {
             fileName.innerText = fileInput.files[0].name;
+        } else {
+            fileName.innerText = "";
         }
     });
 
+    // FORM SUBMIT
     uploadForm.addEventListener("submit", async function (e) {
-
         e.preventDefault();
 
-        const skillsInput = document.getElementById("skillsInput");
-        const resultBox = document.getElementById("resultBox");
-        const loader = document.getElementById("loader");
-        const progressContainer = document.getElementById("progressContainer");
-        const progressBar = document.getElementById("progressBar");
+        // RESET UI
+        resultBox.style.display = "none";
+        loader.style.display = "block";
+        progressContainer.style.display = "block";
+        progressBar.style.width = "10%";
 
         if (fileInput.files.length === 0) {
             alert("Please upload a resume");
+            loader.style.display = "none";
+            progressContainer.style.display = "none";
             return;
         }
 
         const formData = new FormData();
-
         formData.append("file", fileInput.files[0]);
         formData.append("skills", skillsInput.value);
 
-        loader.style.display = "block";
-        progressContainer.style.display = "block";
-        resultBox.style.display = "none";
-
-        progressBar.style.width = "30%";
-
         try {
+
+            progressBar.style.width = "40%";
 
             const response = await fetch("/match", {
                 method: "POST",
                 body: formData
             });
 
-            progressBar.style.width = "80%";
+            progressBar.style.width = "70%";
 
             const data = await response.json();
 
             progressBar.style.width = "100%";
 
             loader.style.display = "none";
-
             resultBox.style.display = "block";
+
+            // HANDLE BACKEND ERROR SAFELY
+            if (!response.ok || data.error) {
+                resultBox.innerHTML = `
+                    <h3 style="color:#ff6b6b;">
+                        ${data.error || "Resume analysis failed"}
+                    </h3>
+                `;
+                return;
+            }
+
+            // SAFE ARRAY HANDLING
+            const resumeSkills = data.resumeSkills || [];
+            const missingSkills = data.missingSkills || [];
 
             resultBox.innerHTML = `
                 <h3>Analysis Result</h3>
 
                 <div class="score-card">
-                    Match Score: ${data.matchScore}%
+                    Match Score: ${data.matchScore ?? 0}%
                 </div>
 
                 <p>
                     <strong>Recommendation:</strong>
-                    ${data.recommendation}
+                    ${data.recommendation ?? "N/A"}
                 </p>
 
                 <div class="skills">
                     <h4>Detected Skills</h4>
-                    ${data.resumeSkills.map(skill =>
-                        `<span class="skill-tag">${skill}</span>`
-                    ).join("")}
+                    ${
+                        resumeSkills.length > 0
+                        ? resumeSkills.map(skill =>
+                            `<span class="skill-tag">${skill}</span>`
+                          ).join("")
+                        : "<p>No skills detected</p>"
+                    }
                 </div>
 
                 <div class="skills">
                     <h4>Missing Skills</h4>
-                    ${data.missingSkills.map(skill =>
-                        `<span class="skill-tag">${skill}</span>`
-                    ).join("")}
+                    ${
+                        missingSkills.length > 0
+                        ? missingSkills.map(skill =>
+                            `<span class="skill-tag">${skill}</span>`
+                          ).join("")
+                        : "<p>None</p>"
+                    }
                 </div>
             `;
 
         } catch (error) {
 
-            console.log(error);
+            console.log("Frontend Error:", error);
 
             loader.style.display = "none";
-
             resultBox.style.display = "block";
 
             resultBox.innerHTML = `
                 <h3 style="color:#ff6b6b;">
                     Resume analysis failed
                 </h3>
+                <p>Check backend /match API or deployment logs.</p>
             `;
         }
     });
 };
 
 </script>
-
 </body>
 
 </html>

@@ -41,42 +41,36 @@ public class ResumeController {
     }
 
     // MAIN RESUME MATCH API
-    @PostMapping("/match")
+@PostMapping("/match")
 public Map<String, Object> matchResume(
         @RequestParam("file") MultipartFile file,
-        @RequestParam("skills") String skillsInput,
-        @RequestParam("jobDescription") String jobDesc) {
+        @RequestParam("skills") String skillsInput) {
 
     Map<String, Object> result = new HashMap<>();
 
     try {
 
-        // ===== FILE CHECK =====
         if (file.isEmpty()) {
             result.put("error", "No file uploaded");
             return result;
         }
 
-        // ===== EXTRACT TEXT =====
         Tika tika = new Tika();
-
         String resumeText = tika.parseToString(file.getInputStream());
 
-        System.out.println("===== RESUME TEXT =====");
-        System.out.println(resumeText);
+        System.out.println("RESUME TEXT: " + resumeText);
+        System.out.println("SKILLS INPUT: " + skillsInput);
 
-        // ===== SKILLS LIST =====
         List<String> skillList = Arrays.stream(skillsInput.split(","))
                 .map(String::trim)
+                .filter(s -> !s.isEmpty())
                 .map(String::toLowerCase)
                 .collect(Collectors.toList());
 
-        // ===== EXTRACT SKILLS =====
         List<String> resumeSkills = extractSkills(resumeText, skillList);
 
-        List<String> jobSkills = extractSkills(jobDesc, skillList);
+        List<String> jobSkills = skillList; // FIXED (no jobDesc dependency)
 
-        // ===== MATCH SCORE =====
         int matchCount = 0;
 
         for (String skill : jobSkills) {
@@ -85,51 +79,40 @@ public Map<String, Object> matchResume(
             }
         }
 
-        double score = 0;
-
-        if (!jobSkills.isEmpty()) {
-            score = ((double) matchCount / jobSkills.size()) * 100;
-        }
+        double score = jobSkills.isEmpty()
+                ? 0
+                : ((double) matchCount / jobSkills.size()) * 100;
 
         score = Math.round(score * 100.0) / 100.0;
 
-        // ===== RECOMMENDATION =====
         String message;
+        if (score >= 75) message = "Strong Match";
+        else if (score >= 50) message = "Moderate Match";
+        else message = "Needs Improvement";
 
-        if (score >= 75) {
-            message = "Strong Match";
-        } else if (score >= 50) {
-            message = "Moderate Match";
-        } else {
-            message = "Needs Improvement";
-        }
+        List<String> missingSkills = jobSkills.stream()
+                .filter(skill -> !resumeSkills.contains(skill))
+                .collect(Collectors.toList());
 
-        // ===== MISSING SKILLS =====
-        List<String> missingSkills = new ArrayList<>();
-
-        for (String skill : jobSkills) {
-            if (!resumeSkills.contains(skill)) {
-                missingSkills.add(skill);
-            }
-        }
-
-        // ===== SAVE RESPONSE =====
         result.put("matchScore", score);
-        result.put("resumeSkills", resumeSkills);
-        result.put("missingSkills", missingSkills);
+        result.put("resumeSkills", resumeSkills != null ? resumeSkills : new ArrayList<>());
+        result.put("missingSkills", missingSkills != null ? missingSkills : new ArrayList<>());
         result.put("recommendation", message);
 
-    } catch (Exception e) {
+        return result;
 
+    } catch (Exception e) {
         e.printStackTrace();
 
+        result.put("matchScore", 0);
+        result.put("resumeSkills", new ArrayList<>());
+        result.put("missingSkills", new ArrayList<>());
+        result.put("recommendation", "Error during analysis");
         result.put("error", e.getMessage());
+
+        return result;
     }
-
-    return result;
-}
-
-    // FILE UPLOAD API
+}    // FILE UPLOAD API
     @PostMapping("/upload")
     public String uploadFile(
             @RequestParam("file")
