@@ -369,156 +369,61 @@ Example: Java, Spring Boot, Docker, SQL"
 
     </div>
 
-    <script>
+<script>
+async function analyzeResume() {
 
-    const dropArea = document.getElementById("dropArea");
-    const fileInput = document.getElementById("file");
-    const browseBtn = document.getElementById("browseBtn");
-    const fileName = document.getElementById("fileName");
+    const fileInput = document.getElementById("resumeFile");
+    const skillsInput = document.getElementById("skills");
+    const resultBox = document.getElementById("result");
 
-    const progressContainer = document.getElementById("progressContainer");
-    const progressBar = document.getElementById("progressBar");
+    if (fileInput.files.length === 0) {
+        alert("Please upload a resume");
+        return;
+    }
 
-    browseBtn.addEventListener("click", () => {
-        fileInput.click();
-    });
+    const formData = new FormData();
 
-    fileInput.addEventListener("change", () => {
-        if (fileInput.files.length > 0) {
-            fileName.innerText = fileInput.files[0].name;
-        }
-    });
+    formData.append("file", fileInput.files[0]);
+    formData.append("skills", skillsInput.value);
 
-    dropArea.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        dropArea.style.borderColor = "#ffffff";
-    });
+    try {
 
-    dropArea.addEventListener("dragleave", () => {
-        dropArea.style.borderColor = "rgba(255,255,255,0.6)";
-    });
+        const response = await fetch("/match", {
+            method: "POST",
+            body: formData
+        });
 
-    dropArea.addEventListener("drop", (e) => {
+        const data = await response.json();
 
-        e.preventDefault();
+        console.log(data);
 
-        fileInput.files = e.dataTransfer.files;
+        resultBox.innerHTML = `
+            <h2>Analysis Result</h2>
 
-        fileName.innerText = e.dataTransfer.files[0].name;
-    });
+            <p><strong>Match Score:</strong> ${data.matchScore}%</p>
 
-    document.getElementById("uploadForm")
-    .addEventListener("submit", async function (e) {
+            <p><strong>Resume Skills:</strong>
+            ${data.resumeSkills.join(", ")}</p>
 
-        e.preventDefault();
+            <p><strong>Missing Skills:</strong>
+            ${data.missingSkills.join(", ")}</p>
 
-        const loader = document.getElementById("loader");
-        const resultBox = document.getElementById("resultBox");
+            <p><strong>Recommendation:</strong>
+            ${data.recommendation}</p>
+        `;
 
-        loader.style.display = "block";
-        resultBox.style.display = "none";
+    } catch (error) {
 
-        progressContainer.style.display = "block";
+        console.log(error);
 
-        let progress = 0;
-
-        const fakeProgress = setInterval(() => {
-
-            progress += 10;
-
-            progressBar.style.width = progress + "%";
-
-            if (progress >= 90) {
-                clearInterval(fakeProgress);
-            }
-
-        }, 250);
-
-        const formData = new FormData();
-
-        
-        formData.append("file", fileInput.files[0]);
-        const skills = document.getElementById("skillsInput").value;
-
-        formData.append("skills", skills);
-        try {
-
-            const response = await fetch("/match", {
-                method: "POST",
-                body: formData
-            });
-
-            const result = await response.json();
-
-            clearInterval(fakeProgress);
-
-            progressBar.style.width = "100%";
-
-            setTimeout(() => {
-
-                loader.style.display = "none";
-
-                resultBox.style.display = "block";
-
-                resultBox.classList.add("success-glow");
-
-                resultBox.innerHTML = `
-
-                    <h3>Analysis Complete</h3>
-
-                    <div class="score-circle">
-
-                        <div class="score-inner">
-                            ${result.score}%
-                        </div>
-
-                    </div>
-
-                    <div class="score-card">
-                        Resume matched successfully with job requirements.
-                    </div>
-
-                    <p><strong>Matched Skills:</strong></p>
-
-                    <div class="skills">
-                        ${result.matchedSkills.map(skill =>
-                            `<span class="skill-tag">${skill}</span>`
-                        ).join("")}
-                    </div>
-
-                    <br>
-
-                    <p><strong>Missing Skills:</strong></p>
-
-                    <div class="skills">
-                        ${result.missingSkills.map(skill =>
-                            `<span class="skill-tag">${skill}</span>`
-                        ).join("")}
-                    </div>
-
-
-                `;
-
-            }, 500);
-
-        } catch (error) {
-
-            loader.style.display = "none";
-
-            resultBox.style.display = "block";
-
-            resultBox.classList.add("error-glow");
-
-            resultBox.innerHTML = `
-                <h3>Error</h3>
-                <p>Resume analysis failed.</p>
-            `;
-        }
-
-    });
-
+        resultBox.innerHTML = `
+            <h2 style="color:red;">
+                Resume analysis failed
+            </h2>
+        `;
+    }
+}
 </script>
-
 </body>
 
 </html>
