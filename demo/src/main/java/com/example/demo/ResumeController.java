@@ -94,6 +94,16 @@ public Map<String, Object> matchResume(
                 .filter(skill -> !resumeSkills.contains(skill))
                 .collect(Collectors.toList());
 
+        ResumeData data = new ResumeData();
+
+data.setFileName(file.getOriginalFilename());
+data.setMatchScore(score);
+data.setMatchedSkills(String.join(", ", resumeSkills));
+data.setMissingSkills(String.join(", ", missingSkills));
+data.setRecommendation(message);
+
+repository.save(data);
+
         result.put("matchScore", score);
         result.put("resumeSkills", resumeSkills != null ? resumeSkills : new ArrayList<>());
         result.put("missingSkills", missingSkills != null ? missingSkills : new ArrayList<>());
